@@ -1,0 +1,1 @@
+sudo ./bin/act -P ubuntu-latest=nektos/act-environments-ubuntu:18.04 -W .github/workflows/ci.yml  #-s PATH=./src/**

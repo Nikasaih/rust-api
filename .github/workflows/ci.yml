@@ -1,0 +1,93 @@
+name: Rust Build and Security Pipeline
+
+on: push
+
+jobs:
+  build_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name : Update dependency
+        run: cargo install cargo-audit --features=fix 
+
+      - name: Build project
+        run: cargo build
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Persist Cargo dependency update
+        run: |
+          git add Cargo.toml
+          git commit --amend --no-edit
+
+  sast:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run dependency license audit
+        run: cargo audit
+
+      - name: Run SAST
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Store analysis results
+        run: |
+          mkdir -p analysis/dependency-license
+          ls
+          mv Cargo.lock analysis/dependency-license/
+          mv Cargo.toml analysis/dependency-license/
+         # mv cargo-audit.json analysis/dependency-license/
+
+          mkdir -p analysis/sast
+          mv clippy_output.txt analysis/sast/
+
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v2
+        with:
+          name: Analysis Results
+          path: analysis
+
+  security:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run security analysis
+        run: cargo security check
+
+      - name: Store security analysis results
+        run: |
+          mkdir -p analysis/security
+          mv Cargo.lock analysis/security/
+          mv Cargo.toml analysis/security/
+          mv cargo-security-report.json analysis/security/
+
+      - name: Upload security analysis results
+        uses: actions/upload-artifact@v2
+        with:
+          name: Security Analysis Results
+          path: analysis/security
